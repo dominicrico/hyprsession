@@ -10,7 +10,7 @@ HyprSession is a utility designed to store and restore window sessions for Hyprl
 
 ## Installation
 
-1. Download the precompiled binary from the [releases](#) section.
+1. Download the precompiled binary from the [releases](/releases) section.
 2. Move the binary to a directory in your `PATH` (e.g., `/usr/local/bin`).
 3. Make it executable:
 
