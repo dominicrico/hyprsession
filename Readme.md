@@ -17,6 +17,12 @@ HyprSession is a utility designed to store and restore window sessions for Hyprl
    ```bash
    chmod +x /usr/local/bin/hyprsession
    ```
+4. Add it to your hyprland.conf
+   ```bash
+   exec-once=hyprsession
+   # or 
+   exec-once=hyprsession --silent
+   ```
 
 ## Usage
 
