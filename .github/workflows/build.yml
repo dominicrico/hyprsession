@@ -7,15 +7,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-        
     - name: Checkout
       uses: actions/checkout@v4
-    - name: Compile
+    - name: Setup Bun
       uses: oven-sh/setup-bun@v2
-    - run: bun install
-    - run: bun build --compile --minify --sourcemap hyprsession.ts --outfile hyprsession
+    - name: Install dependencies
+      run: bun install
+    - name: Compile
+      run: bun build --compile --minify --sourcemap hyprsession.ts --outfile hyprsession
     - if: startsWith(github.ref, 'refs/tags/')
       name: Release
       env:
         GITHUB_TOKEN: ${{ secrets.TOKEN }}
       uses: softprops/action-gh-release@v2
+      with:
+        files: hyprsession
