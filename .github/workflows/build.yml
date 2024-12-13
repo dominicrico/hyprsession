@@ -1,14 +1,13 @@
 name: CI
 on: 
   push:
-    branches:
-    - main
     tags:        
       - '*' 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+        
     - name: Checkout
       uses: actions/checkout@v4
     - name: Compile
@@ -17,4 +16,6 @@ jobs:
     - run: bun build --compile --minify --sourcemap hyprsession.ts --outfile hyprsession
     - if: startsWith(github.ref, 'refs/tags/')
       name: Release
+      env:
+        GITHUB_TOKEN: ${{ env.TOKEN }}
       uses: softprops/action-gh-release@v2
