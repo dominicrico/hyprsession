@@ -257,7 +257,7 @@ export const spawnIndipendent = (cmd: string): { pid?: number, ppid?: number } =
 export const findMatchingWindow = async (client: Session): Promise<Window|undefined> => {
   try {
     const currentClients = await hyprBun.clients()
-    return Promise.resolve(currentClients.find(cClient => cClient.initialTitle === client.initialTitle) || currentClients.find(cClient => cClient.initialClass === client.initialClass) || currentClients.find(cClient => cClient.class === client.class) || currentClients.find(cClient => cClient.pid === client.pid) || currentClients.find(cClient => cClient.class?.includes(client?.class!)))
+    return Promise.resolve(currentClients.find(cClient => cClient.initialTitle === client.initialTitle) || currentClients.find(cClient => cClient.initialClass === client.initialClass) || currentClients.find(cClient => cClient.class === client.class) || currentClients.find(cClient => cClient.class?.includes(client?.class!)) || currentClients.find(cClient => cClient.pid === client.pid))
   } catch(e) {
     console.log(e)
     return Promise.reject(e)
@@ -271,7 +271,7 @@ export const waitTillWindowIsReady = async (client: Session): Promise<Window> =>
     createdWindow = await findMatchingWindow(client)
 
     if (!createdWindow) {
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await new Promise((resolve) => setTimeout(resolve, 200))
     }
   }
 

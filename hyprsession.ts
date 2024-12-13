@@ -1,14 +1,21 @@
-import { DispatchersArgs, HyprBun, Window } from "./hyprbun"
+import { HyprBun, Window } from "./hyprbun"
 import { checkFlatpakList, findMatchingWindow, getProcessByPidOrName, isPossibleAppImage, spawnIndipendent, waitTillWindowIsReady } from "./utils"
 import { homedir } from "os"
 import { join } from "path"
 import { mkdir, stat, writeFile } from "fs/promises"
-import chalk, { chalkStderr } from 'chalk'
-import ora, { Options, Ora } from 'ora'
+import { chalkStderr } from 'chalk'
+import ora, { Ora } from 'ora'
 import { readFile } from "fs/promises"
 import meow from 'meow'
 
 export type Session = Partial<Window> & { cmd: string, appImage?: string, flatpak?: string, ppid?: number }
+
+enum Direction {
+    R = 'r',
+    L = 'l',
+    U = 'u',
+    D = 'd',
+}
 
 const cli = meow(`
 	Usage
@@ -74,6 +81,7 @@ class HyprSession {
     private hyprBun: HyprBun = new HyprBun()
     private currentSession: Session[] = []
     private flags: typeof cli.flags
+    private groups: {[key: string]: string[]} = {}
 
     constructor(flags: typeof cli.flags) {
         this.flags = flags
@@ -108,6 +116,30 @@ class HyprSession {
         return 
     }
 
+    private checkGroup(group: string[], address: string): boolean {
+        const groupIdentifier = group.join(':')
+        if (this.groups[groupIdentifier]) {
+            this.groups[groupIdentifier].push(address)
+            return true
+        }
+
+        this.groups[groupIdentifier] = [address]
+        return false
+    }
+
+    private async guessSideOfGroup(win: Window, group: string[]): Promise<Direction> {
+        const clients = await this.hyprBun.clients()
+
+        const firstGroupMember = this.groups[group.join(':')][0]
+        const groupBaseWindow = clients.find(client => client.address === firstGroupMember)
+        const currWindow = clients.find(client => client.address === win.address)
+
+        if (groupBaseWindow!.at[0] >= currWindow!.at[0])
+            return Direction.R
+
+        return Direction.L
+    }
+
     private async setWindowProperties(client: Session, win: Window): Promise<void> {
         try {
             if (win.floating && client.size)
@@ -118,13 +150,16 @@ class HyprSession {
             
             if (win.floating && !client.floating)
                 await this.hyprBun.dispatch('settiled', `address:${win.address}`)
-    
-            if (!win.grouped?.length && client.grouped?.length)
-                await this.hyprBun.dispatch('togglegroup')
             
             if (win.workspace?.name !== client.workspace?.name)
-                await this.hyprBun.dispatch('movetoworkspacesilent', `${client.workspace?.name.replace(/^special:/,'')},address:${win.address}`)
-        
+                await this.hyprBun.dispatch('movetoworkspace', `${client.workspace?.name.replace(/^special:/,'')},address:${win.address}`)
+    
+            if (!win.grouped?.length && client.grouped?.length)
+                !this.checkGroup(client.grouped, win.address) ? await this.hyprBun.dispatch('togglegroup') : await this.hyprBun.dispatch('moveintogroup', await this.guessSideOfGroup(win, client.grouped))
+
+            if (client.grouped?.length && this.groups[client.grouped.join(':')].length === client.grouped.length && client.workspace?.name.includes('special:'))
+                await this.hyprBun.dispatch('togglespecialworkspace', client.workspace?.name.replace(/^special:/,''))
+            
             this.log(`Restored ${client.initialClass}`)
         } catch(e) {
             this.log(e.message, 'fail')
@@ -189,7 +224,7 @@ class HyprSession {
         }
     
         try {
-            session = JSON.parse(await readFile(join(HyprSession.HYPRSESSION_DIR, 'session.json'), { encoding: 'utf-8', signal: this.signal}))
+            session = JSON.parse(await readFile(join(HyprSession.HYPRSESSION_DIR, 'session.json'), { encoding: 'utf-8', signal: this.signal})).sort((a: Window, b: Window) => b.grouped.length - a.grouped.length)
         } catch(e) {
             this.log('No session found.')
             return this.storeSession()
@@ -214,6 +249,7 @@ class HyprSession {
                 client.ppid = pids.ppid
     
                 this.log(`Waiting for ${client.initialClass} to start...`)
+                await new Promise(resolve => setTimeout(resolve, 300))
                 const win = await waitTillWindowIsReady(client)
     
                 this.log(`Restoring properties for ${client.initialClass}...`)
@@ -228,6 +264,9 @@ class HyprSession {
         
         this.log('Session restored!')
 
+        if (this.flags.restoreSession)
+            return process.exit(0)
+
         return this.storeSession()
     }
 }
@@ -238,6 +277,7 @@ class HyprSession {
     const hyprSession = new HyprSession(cli.flags)
     
     process.on('SIGINT', async () => {
-        await hyprSession.storeSession(true)
+        //await hyprSession.storeSession(true)
+        return process.exit(0)
     })
 })() 

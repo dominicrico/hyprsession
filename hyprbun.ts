@@ -250,6 +250,15 @@ export class HyprBun {
   /** Lists active outputs with their properties, 'monitors all' lists active and inactive outputs */
   async monitors() {
       return this.hyprctlJson<Monitor[]>('j/monitors')
+
+  }  
+
+  /** Run multiple hyprctl commands in a batch */
+  async batch(commands: string[]) {
+    console.log(`--batch ${commands.join(';')}`)
+      if (!commands?.length)
+        return
+      return this.hyprctl(`--batch ${commands.join(';')}`)
   }
 
   /** Sends a notification using the built-in Hyprland notification system */
