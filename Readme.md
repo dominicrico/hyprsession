@@ -2,6 +2,10 @@
 
 HyprSession is a utility designed to store and restore window sessions for Hyprland, a dynamic tiling window manager for Linux. Initially created using [Bun.js](https://bun.sh), the tool is compiled into a binary for seamless usage on Linux systems.
 
+
+https://github.com/user-attachments/assets/d3013c0f-d0be-4563-ab18-a98a839c7d4b
+
+
 > [!NOTE]
 > Most of it should work and depending on the window count it will take a while.
 > This is through the nature of hyprland. 
