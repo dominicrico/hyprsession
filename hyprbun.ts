@@ -312,9 +312,6 @@ export class HyprBun {
         resolve()
       })
 
-      console.log(path)
-      console.log(Bun.env)
-
       this.socket.connect(path)
     })
   }
