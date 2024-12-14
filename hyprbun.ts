@@ -182,7 +182,7 @@ export class HyprBun {
   instanceSignature: string
   chunks: Uint8Array[] = []
 
-  constructor(instanceSignature = process.env.HYPRLAND_INSTANCE_SIGNATURE || '') {
+  constructor(instanceSignature = Bun.env.HYPRLAND_INSTANCE_SIGNATURE || '') {
     this.instanceSignature = instanceSignature
   }
 
@@ -303,13 +303,17 @@ export class HyprBun {
   private async open(): Promise<void> {
     return new Promise((resolve) => {
       if (this.socket.connected) return resolve()
-      const runtimeDir = process.env.XDG_RUNTIME_DIR || '/tmp'
+
+      const runtimeDir = Bun.env.XDG_RUNTIME_DIR || '/tmp'
       const path = `${runtimeDir}/hypr/${this.instanceSignature}/.socket.sock`
 
       this.socket.once('connect', () => {
         this.socket.connected = true
         resolve()
       })
+
+      console.log(path)
+      console.log(Bun.env)
 
       this.socket.connect(path)
     })
@@ -362,7 +366,7 @@ export class HyprBun {
   }
 
   async *events() {
-    const runtimeDir = process.env.XDG_RUNTIME_DIR || '/tmp'
+    const runtimeDir = Bun.env.XDG_RUNTIME_DIR || '/tmp'
     const path = `${runtimeDir}/hypr/${this.instanceSignature}/.socket2.sock`
     const eventSocket = createConnection(path)
 

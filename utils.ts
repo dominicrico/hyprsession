@@ -133,7 +133,7 @@ const findFilesByNamePart = async (folderPath: string, namePart: string, recursi
 
 export const isPossibleAppImage = async (application: string): Promise<string|undefined> => {
   const applicationDirs = [
-    join(process.env.HOME as string, '.local/share/applications/'),
+    join(Bun.env.HOME as string, '.local/share/applications/'),
     '/use/share/applications'
   ]
 
