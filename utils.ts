@@ -1,7 +1,7 @@
-import { exec, ExecException, execSync, spawn } from 'child_process'
+import { exec, type ExecException } from 'child_process'
 import path, { join } from 'path'
-import { HyprBun, Window } from './hyprbun'
-import { Session } from './hyprsession'
+import { HyprBun, type Window } from './hyprbun'
+import type { Session } from './hyprsession'
 import { readdir, readFile } from 'fs/promises'
 
 const UNIT_MB = 1024 * 1024
@@ -133,7 +133,7 @@ const findFilesByNamePart = async (folderPath: string, namePart: string, recursi
 
 export const isPossibleAppImage = async (application: string): Promise<string|undefined> => {
   const applicationDirs = [
-    join(Bun.env.HOME as string, '.local/share/applications/'),
+    join(Bun.env['HOME'] as string, '.local/share/applications/'),
     '/use/share/applications'
   ]
 
@@ -238,22 +238,6 @@ export const getProcessByPidOrName = async (proc?: number | string, strict?: boo
   })
 }
 
-export const spawnIndipendent = (cmd: string): { pid?: number, ppid?: number } => {
-  const exec = cmd.split(' ')[0]
-  const params = cmd.split(' ').slice(1)
-
-  const child = spawn(exec, params, {
-    detached: true
-  })
-
-  const _pid = JSON.stringify(child.pid)
-  const _ppid = execSync(`ps -o ppid= -p ${process.pid}`).toString().split('\n')[0];
-
-  child.unref()
-
-  return {pid: +_pid, ppid: +_ppid}
-}
-
 export const findMatchingWindow = async (client: Session): Promise<Window|undefined> => {
   try {
     const currentClients = await hyprBun.clients()
@@ -262,18 +246,4 @@ export const findMatchingWindow = async (client: Session): Promise<Window|undefi
     console.log(e)
     return Promise.reject(e)
   }
-}
-
-export const waitTillWindowIsReady = async (client: Session): Promise<Window> => {
-  let createdWindow: Window|undefined
-
-  while (!createdWindow) {
-    createdWindow = await findMatchingWindow(client)
-
-    if (!createdWindow) {
-      await new Promise((resolve) => setTimeout(resolve, 200))
-    }
-  }
-
-  return createdWindow
 }
