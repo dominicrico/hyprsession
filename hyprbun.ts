@@ -1,4 +1,4 @@
-import { createConnection, Socket } from 'net'
+import { createConnection, Socket } from 'node:net'
 
 export const enum Icons {
   none = -1,

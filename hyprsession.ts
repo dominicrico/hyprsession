@@ -2,10 +2,9 @@ import { HyprBun, type Window } from "./hyprbun"
 import { checkFlatpakList, findMatchingWindow, getProcessByPidOrName, isPossibleAppImage } from "./utils"
 import { homedir } from "os"
 import { join } from "path"
-import { mkdir, stat, writeFile } from "fs/promises"
+import { mkdir, stat } from "node:fs/promises"
 import { chalkStderr } from 'chalk'
 import ora, { type Ora } from 'ora'
-import { readFile } from "fs/promises"
 import meow from 'meow'
 
 export type Session = Partial<Window> & { cmd: string, appImage?: string, flatpak?: string, ppid?: number }
@@ -82,18 +81,6 @@ class HyprSession {
      * @type {Ora}
      */
     public spinner?: Ora
-    
-    /**
-     * The AbortController instance used for cancelling ongoing operations.
-     * @type {AbortController}
-     */
-    private controller: AbortController = new AbortController()
-    
-    /**
-     * The AbortSignal instance used for cancelling ongoing operations.
-     * @type {AbortSignal}
-     */
-    private signal: AbortSignal = this.controller.signal
     
     /**
      * The directory path where HyprSession files are stored.
@@ -260,7 +247,7 @@ class HyprSession {
             if (!win.grouped?.length && client.grouped?.length)
                 !this.checkGroup(client.grouped, win.address) ? await this.hyprBun.dispatch('togglegroup') : await this.hyprBun.dispatch('moveintogroup', await this.guessSideOfGroup(win, client.grouped))
 
-            if (client.grouped?.length && this.groups[client.grouped.join(':')].length === client.grouped.length && client.workspace?.name.includes('special:'))
+            if (client.grouped?.length && this.groups[client.grouped?.join(':')]?.length === client.grouped.length && client.workspace?.name.includes('special:'))
                 await this.hyprBun.dispatch('togglespecialworkspace', client.workspace?.name.replace(/^special:/,''))
             
             this.log(`Restored ${client.initialClass}`)
@@ -352,7 +339,7 @@ class HyprSession {
         }
     
         try {
-            await writeFile(join(HyprSession.HYPRSESSION_DIR, 'session.json'), JSON.stringify(this.currentSession), { signal: this.signal })
+            await Bun.write(join(HyprSession.HYPRSESSION_DIR, 'session.json'), JSON.stringify(this.currentSession))
             
             if (once !== false || !this.flags.autoSave) {
                 this.log(`Saved current session`, 'succeed')
@@ -393,7 +380,8 @@ class HyprSession {
         }
     
         try {
-            session = JSON.parse(await readFile(join(HyprSession.HYPRSESSION_DIR, 'session.json'), { encoding: 'utf-8', signal: this.signal})).sort((a: Window, b: Window) => b.grouped.length - a.grouped.length)
+            const file = Bun.file(join(HyprSession.HYPRSESSION_DIR, 'session.json'))
+            session = JSON.parse(await file.text()).sort((a: Window, b: Window) => b.grouped.length - a.grouped.length)
         } catch(e) {
             this.log('No session found.')
             return this.storeSession()

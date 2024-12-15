@@ -1,12 +1,8 @@
-import { exec, type ExecException } from 'child_process'
+import { $ } from 'bun'
 import path, { join } from 'path'
 import { HyprBun, type Window } from './hyprbun'
 import type { Session } from './hyprsession'
-import { readdir, readFile } from 'fs/promises'
-
-const UNIT_MB = 1024 * 1024
-
-const run = async (cmd: string, cb: (err: ExecException | null, stdout: string, stderr: string) => void) => exec(cmd, { maxBuffer: 2 * UNIT_MB, windowsHide: true }, cb)
+import { readdir } from 'node:fs/promises'
 
 const hyprBun = new HyprBun()
 
@@ -140,7 +136,8 @@ export const isPossibleAppImage = async (application: string): Promise<string|un
   const found = await findFilesByNamePart(applicationDirs[0], application)
 
   if (found?.length) {
-    const desktopFile = await readFile(found[0], {encoding: 'utf-8'})
+    const file = Bun.file(found[0])
+    const desktopFile = await file.text()
     const matches = desktopFile.match(/StartupWMClass=(\w+)/gmi)?.at(0)
     const isAppImage = matches?.includes(application)
     
@@ -154,55 +151,37 @@ export const isPossibleAppImage = async (application: string): Promise<string|un
 }
 
 export const checkFlatpakList = async (client: Window): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const cmd: string = 'flatpak list --columns=name,application --user --system'
-  
-    run(cmd, (err, stdout, stderr) => {
-      if (err) {
-          reject(err)
-      } else {
-        if (stderr.toString().trim()) {
-          reject({stderr})
-          return
-        }
-  
-        const data = stripLine(stdout.toString(), 1)
-        const columns = extractColumns(data, [0, 1], 2).filter(column => {
-          return !!column[0]
-        })
+  return new Promise(async (resolve, reject) => {
+    try  {
+      const out = await $`flatpak list --columns=name,application --user --system`.text()
 
-        const found = columns.filter(col => client.initialTitle.toLocaleLowerCase().includes(col[0].toLowerCase())).flatMap((col) => col[1])[0]
+      const data = stripLine(out.toString(), 1)
+      const columns = extractColumns(data, [0, 1], 2).filter(column => {
+        return !!column[0]
+      })
 
-        return resolve(found)
-      }
-    })
+      const found = columns.filter(col => client.initialTitle.toLocaleLowerCase().includes(col[0].toLowerCase())).flatMap((col) => col[1])[0]
+
+      return resolve(found)
+    } catch(e: any) {
+      console.log(e)
+      return reject(e)
+    }
   })
 }
 
 export const getProcessByPidOrName = async (proc?: number | string, strict?: boolean ): Promise<Proc[]> => {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     let cmd: string = 'ps ax -ww -o pid,ppid,uid,gid,args'
     
     if (proc) {
       cmd = `ps -p ${proc} -ww -o pid,ppid,uid,gid,args`
     }
 
-    run(cmd, (err, stdout, stderr) => {
-      if (err) {
-        if (proc) {
-          // when pid not exists, call `ps -p ...` will cause error, we have to
-          // ignore the error and resolve with empty array
-          resolve([])
-        } else {
-          reject(err)
-        }
-      } else {
-        if (stderr.toString().trim()) {
-          reject({stderr})
-          return
-        }
+    try  {
+      const out = await $`sh -c "${cmd}"`.text()
 
-        const data = stripLine(stdout.toString(), 1)
+      const data = stripLine(out.toString(), 1)
         const columns = extractColumns(data, [0, 1, 2, 3, 4], 5).filter(column => {
           if (column[0] && proc) {
             return column[0] === String(proc)
@@ -232,9 +211,16 @@ export const getProcessByPidOrName = async (proc?: number | string, strict?: boo
           list = list.filter(item => item.name === proc)
         }
 
-        resolve(list)
+        return resolve(list)
+    } catch(e: any) {
+      if (proc) {
+        // when pid not exists, call `ps -p ...` will cause error, we have to
+        // ignore the error and resolve with empty array
+        return resolve([])
+      } else {
+        return reject(e)
       }
-    })
+    }
   })
 }
 
